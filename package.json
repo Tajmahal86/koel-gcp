@@ -13,6 +13,7 @@
   "author": "Amir Rahwane<me@phanan.net>",
   "license": "MIT",
   "dependencies": {
+    "@google-cloud/storage": "^1.1.0",
     "async": "^2.0.0-rc.6",
     "dotenv": "^2.0.0",
     "musicmetadata": "^2.0.4",

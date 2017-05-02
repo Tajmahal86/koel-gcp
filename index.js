@@ -12,6 +12,7 @@ const async = require('async');
 const request = require('request');
 const fs = require('fs');
 const util = require('util')
+const storage = require('@google-cloud/storage');
 
 //const AWS = require('aws-sdk');
 //const s3 = new AWS.S3();
@@ -20,7 +21,6 @@ const util = require('util')
  
 exports.helloGCS = function helloGCS (event, callback) {
   const file = event.data;
-  const isDelete = file.resourceState === 'not_exists';
 
   /**
    * Types (extensions) that we supported - for now
@@ -48,70 +48,25 @@ exports.helloGCS = function helloGCS (event, callback) {
 
    
   // Event type is always "providers/cloud.storage/eventTypes/object.change"
-  console.log(`type of eventId is ${event.eventId}.`);
-  console.log(`type of event timestamp is ${event.timestamp}.`);
-  console.log(`type of eventType is ${event.eventType}.`);
-  console.log(`type of eventType resource is ${event.resource}.`);
-  console.log(`type of event data is ` + util.inspect(event.data, false, null) );
+  // console.log(`type of eventId is ${event.eventId}.`);
+  // console.log(`type of event timestamp is ${event.timestamp}.`);
+  // console.log(`type of eventType is ${event.eventType}.`);
+  // console.log(`type of eventType resource is ${event.resource}.`);
+  // console.log(`type of event data is ` + util.inspect(event.data, false, null) );
   
-	// if (record.eventName === 'ObjectCreated:Put') {
-		// return handlePut(bucket, key, cb);
-	// } else if (record.eventName === 'ObjectRemoved:Delete') {
-		// return handleDelete(bucket, key, cb);
-	// }
-
-	// cb(`Unsupported event type: ${record.eventName}`);
-  
-
-console.log(util.inspect(myObject, {showHidden: false, depth: null}))
-
-// alternative shortcut
-console.log(util.inspect(myObject, false, null))
-  
-  // if (isDelete) {
-    // console.log(`File ${file.name} deleted.`);
-  // } else {
-    // console.log(`File ${file.name} uploaded.`);
-  // }
-
+	  
+  if (file.resourceState === 'not_exists') {
+    console.log(`File ${file.name} deleted.`);
+	return handleDelete(file.bucket, file.name, callback);
+  } else if (file.timeCreated === file.updated) {
+	  console.log(`File ${file.name} uploaded.`);
+	return handlePut(file.bucket, file.name, callback);
+  }	else {
+	  console.log(`File changed but this is not supported yet.`);
+  }
   callback();
 };
 
-
-
-exports.handler = function (e, ctx, cb) {
-	const record = e.Records[0];
-
-	/**
-	 * Types (extensions) that we supported - for now
-	 * @type {Array}
-	 */
-	const supportTypes = ['mp3', 'm4a', 'ogg'];
-
-	const bucket = record.s3.bucket.name;
-	const key = decodeURIComponent(record.s3.object.key.replace(/\+/g, ' '));
-
-	// Check the media type.
-	const typeMatch = key.match(/\.([^.]*)$/);
-	if (!typeMatch) {
-		cb('Could not determine the media type.');
-		return;
-	}
-
-	const type = typeMatch[1];
-	if (supportTypes.indexOf(type) === -1) {
-		cb(`Unsupported media type: ${type}`);
-		return;
-	}
-
-	if (record.eventName === 'ObjectCreated:Put') {
-		return handlePut(bucket, key, cb);
-	} else if (record.eventName === 'ObjectRemoved:Delete') {
-		return handleDelete(bucket, key, cb);
-	}
-
-	cb(`Unsupported event type: ${record.eventName}`);
-};
 
 /**
  * Download the new/modified file from S3, read its tags, and post to Koel.
@@ -120,25 +75,41 @@ exports.handler = function (e, ctx, cb) {
  * @param  {Function} cb
  * @return {[type]}          [description]
  */
-function handlePut(bucket, key, cb) {
+function handlePut(bucket, key, callback) {
 	'use strict';
 
 	let tags = {};
 	let lyrics = ''; // Lyrics is handled differently
 
+	const projectId = process.env.GCP_PROJECTID;
+
+	const gcs = storage({
+	  projectId: projectId
+	});
+
+	const file = gcs.bucket(bucket).file(key);
+
+	const fileName = `/tmp/${Math.random().toString(36)}`;
+	const options = {
+    // The path to which the file should be downloaded, e.g. "./file.txt"
+		destination: fileName
+	};
+
+    // return file.download(options).then(() => {
+      
+    // });
+  
 	async.waterfall([
 		function fetch(next) {
-			s3.getObject({
-				Bucket: bucket,
-				Key: key
-			}, (err, data) => {
+			
+			file.download({options}, (err, data) => {
 				if (err) {
-					return cb(`Failed to fetch object from S3: ${err}`);
+					return callback(`Failed to fetch object from S3: ${err}`);
 				}
 
 				// In order to get the duration properly, we must write the buffer to a file.
-				const fileName = `/tmp/${Math.random().toString(36)}`;
-				fs.writeFileSync(fileName, data.Body);
+				console.log(`File ${file.name} downloaded to ${fileName}`);
+				//fs.writeFileSync(fileName, data.Body);
 				const parser = mm(fs.createReadStream(fileName), {duration: true}, (err, rawTags) => {
 					if (err) {
 						console.error(`Error reading tags: ${err}.`);
@@ -198,7 +169,7 @@ function handlePut(bucket, key, cb) {
 			console.log(`Successfully sync ${key}`);
 		}
 
-		cb(null, 'Successful.');
+		callback(null, 'Successful.');
 	});
 }
 
