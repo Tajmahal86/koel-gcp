@@ -1,0 +1,1 @@
+gcloud beta functions deploy helloGCS --stage-bucket functional --trigger-bucket  koel

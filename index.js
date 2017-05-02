@@ -14,10 +14,6 @@ const fs = require('fs');
 const util = require('util')
 const storage = require('@google-cloud/storage');
 
-//const AWS = require('aws-sdk');
-//const s3 = new AWS.S3();
-
-
  
 exports.helloGCS = function helloGCS (event, callback) {
   const file = event.data;
@@ -45,15 +41,6 @@ exports.helloGCS = function helloGCS (event, callback) {
 	  console.log(`Unsupported media type: ${type}`);
   	return;
   }  
-
-   
-  // Event type is always "providers/cloud.storage/eventTypes/object.change"
-  // console.log(`type of eventId is ${event.eventId}.`);
-  // console.log(`type of event timestamp is ${event.timestamp}.`);
-  // console.log(`type of eventType is ${event.eventType}.`);
-  // console.log(`type of eventType resource is ${event.resource}.`);
-  // console.log(`type of event data is ` + util.inspect(event.data, false, null) );
-  
 	  
   if (file.resourceState === 'not_exists') {
     console.log(`File ${file.name} deleted.`);
@@ -91,25 +78,20 @@ function handlePut(bucket, key, callback) {
 
 	const fileName = `/tmp/${Math.random().toString(36)}`;
 	const options = {
-    // The path to which the file should be downloaded, e.g. "./file.txt"
 		destination: fileName
 	};
 
-    // return file.download(options).then(() => {
-      
-    // });
-  
 	async.waterfall([
 		function fetch(next) {
 			
-			file.download({options}, (err, data) => {
+			file.download(function(err, contents) { 
 				if (err) {
-					return callback(`Failed to fetch object from S3: ${err}`);
+					console.log(`Failed to fetch object from Google Cloud Storage: ${err}`);
+					return callback();
 				}
-
-				// In order to get the duration properly, we must write the buffer to a file.
+				
+				fs.writeFileSync(fileName, contents);
 				console.log(`File ${file.name} downloaded to ${fileName}`);
-				//fs.writeFileSync(fileName, data.Body);
 				const parser = mm(fs.createReadStream(fileName), {duration: true}, (err, rawTags) => {
 					if (err) {
 						console.error(`Error reading tags: ${err}.`);
@@ -123,7 +105,7 @@ function handlePut(bucket, key, callback) {
 				parser.on('ULT', result => {
 					lyrics = result.text;
 				});
-			});
+			});	
 		},
 
 		/**
@@ -168,8 +150,9 @@ function handlePut(bucket, key, callback) {
 		} else {
 			console.log(`Successfully sync ${key}`);
 		}
-
-		callback(null, 'Successful.');
+		
+		console.log(`Successfull`);
+		callback();
 	});
 }
 
@@ -179,7 +162,7 @@ function handlePut(bucket, key, callback) {
  * @param  {string}   key    The object key
  * @param  {Function} cb
  */
-function handleDelete(bucket, key, cb) {
+function handleDelete(bucket, key, callback ) {
 	request.delete({
 		url: `${process.env.KOEL_HOST}/api/os/s3/song`,
 		form: {
@@ -191,7 +174,8 @@ function handleDelete(bucket, key, cb) {
 		if (err) {
 			console.log(`Error deleting song from Koel: ${err}.`);
 		} else {
-			cb(null, 'Successful.');
+			console.log(`Successfully removed file ${key} from Koel.`);
+			callback();
 		}
 	});
 }
