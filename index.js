@@ -56,7 +56,7 @@ exports.helloGCS = function helloGCS (event, callback) {
 
 
 /**
- * Download the new/modified file from S3, read its tags, and post to Koel.
+ * Download the new/modified file from GCS, read its tags, and post to Koel.
  * @param  {string}   bucket The bucket name
  * @param  {string}   key    The object key
  * @param  {Function} cb
@@ -131,7 +131,7 @@ function handlePut(bucket, key, callback) {
 
 		function postToKoel() {
 			request.post({
-				url: `${process.env.KOEL_HOST}/api/os/s3/song`,
+				url: `${process.env.KOEL_HOST}/api/os/gcs/song`,
 				form: {
 					bucket,
 					key,
@@ -164,7 +164,7 @@ function handlePut(bucket, key, callback) {
  */
 function handleDelete(bucket, key, callback ) {
 	request.delete({
-		url: `${process.env.KOEL_HOST}/api/os/s3/song`,
+		url: `${process.env.KOEL_HOST}/api/os/gcs/song`,
 		form: {
 			bucket,
 			key,
