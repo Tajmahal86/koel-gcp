@@ -11,11 +11,10 @@ const mm = require('musicmetadata');
 const async = require('async');
 const request = require('request');
 const fs = require('fs');
-const util = require('util')
 const storage = require('@google-cloud/storage');
 
  
-exports.helloGCS = function helloGCS (event, callback) {
+exports.notifyUploaded = function notifyUploaded (event, callback) {
   const file = event.data;
 
   /**
@@ -25,9 +24,7 @@ exports.helloGCS = function helloGCS (event, callback) {
   const supportTypes = ['mp3', 'm4a', 'ogg' , 'MP3' , 'M4A' , 'OGG' , 'mP3' , 'Mp3'];
 
   const bucket = file.bucket;
-  console.log(`Bucket name is ${file.bucket}.`);
   const key = decodeURIComponent(file.name.replace(/\+/g, ' '));
-  console.log(`File name is ${key}.`);
   
   // Check the media type.
   const typeMatch = key.match(/\.([^.]*)$/);
@@ -99,13 +96,10 @@ function handlePut(bucket, key, callback) {
 					}
 
 					tags = rawTags;
-					console.log(`Tags:`);
-					console.log(util.inspect(tags, {showHidden: false, depth: null}))
 					next();
 				});
 
 				parser.on('ULT', result => {
-					console.log(`Lyrics: ${lyrics}`);
 					lyrics = result.text;
 				});
 			});	
@@ -130,8 +124,6 @@ function handlePut(bucket, key, callback) {
 				};
 			}
 			delete tags.picture;
-			console.log(`Tags:`);
-			console.log(util.inspect(tags, {showHidden: false, depth: null}))
 			next();
 		},
 
