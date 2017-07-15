@@ -66,7 +66,7 @@ function handlePut(bucket, key, callback) {
 	'use strict';
 
 	let tags = {};
-	let lyrics = ''; // Lyrics is handled differently
+	let lyrics = ''; // Lyrics are handled differently
 
 	const projectId = process.env.GCP_PROJECTID;
 
@@ -99,10 +99,13 @@ function handlePut(bucket, key, callback) {
 					}
 
 					tags = rawTags;
+					console.log(`Tags:`);
+					console.log(util.inspect(tags, {showHidden: false, depth: null}))
 					next();
 				});
 
 				parser.on('ULT', result => {
+					console.log(`Lyrics: ${lyrics}`);
 					lyrics = result.text;
 				});
 			});	
@@ -113,6 +116,8 @@ function handlePut(bucket, key, callback) {
 		 * @param  {Function} next
 		 */
 		function formatTags(next) {
+			/* In Koel Lyrics column can't bu null this is to avoid this error messege */
+			if (!lyrics) { lyrics = 'NoLyrics'; }
 			tags.lyrics = lyrics;
 			tags.artist = tags.artist.length ? tags.artist[0] : '';
 			tags.albumartist = tags.albumartist.length ? tags.albumartist[0] : '';
@@ -125,18 +130,20 @@ function handlePut(bucket, key, callback) {
 				};
 			}
 			delete tags.picture;
-
+			console.log(`Tags:`);
+			console.log(util.inspect(tags, {showHidden: false, depth: null}))
 			next();
 		},
 
 		function postToKoel() {
+			console.log(`Posting to ${process.env.KOEL_HOST}/api/os/gcs/song`);
 			request.post({
 				url: `${process.env.KOEL_HOST}/api/os/gcs/song`,
 				form: {
 					bucket,
 					key,
 					tags,
-					appKey: process.env.KOEL_APP_KEY
+					appKey: process.env.APP_KEY
 				}
 			}, err => {
 				if (err) {
@@ -168,7 +175,7 @@ function handleDelete(bucket, key, callback ) {
 		form: {
 			bucket,
 			key,
-			appKey: process.env.KOEL_APP_KEY
+			appKey: process.env.APP_KEY
 		}
 	}, err => {
 		if (err) {
